@@ -13,8 +13,8 @@ pipeline {
                 cleanWs()
                 // Correct git checkout syntax
                 checkout ([
-                    $class: 'GitSCM'
-                    branches: [[name: 'uat']]
+                    $class: 'GitSCM',
+                    branches: [[name: 'uat']],
                     userRemoteConfigs: [[
                         url: env.REPO_URL
                     ]]
