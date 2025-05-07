@@ -42,7 +42,7 @@ pipeline {
                         
                         // Security scanning
                         echo 'Running checkov security scan...'
-                        sh '/home/ubuntu/.local/bin/checkov -d . --output json > checkov_results.json'
+                        sh 'checkov -d . --output json > checkov_results.json'
                         archiveArtifacts artifacts: 'checkov_results.json'
                     }
                 }
