@@ -4,7 +4,7 @@ pipeline {
     // Environment variables that will be used throughout the pipeline
     environment {
         REPO_URL = 'https://github.com/sahil-dotcom/AWS-Wordpress-App---Enhanced-with-Cloudfront-WAF-Lambda-Edge-Datadog.git'
-        WORKING_DIR = 'terraform-aws-infra'  // Directory where Terraform files are located
+        WORKING_DIR = '/home/aws_builder/terraform-aws-infra'  // Directory where Terraform files are located
     }
     
     stages {
