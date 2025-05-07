@@ -10,15 +10,15 @@ pipeline {
     stages {
         stage('Checkout Source Code') {
             steps {
-                script {
-                    cleanWs()
-                    git branch: 'uat', 
-                         url: env.REPO_URL,
-                    
-                    dir(env.WORKING_DIR) {
-                        sh 'terraform init'
-                    }
-                }
+                cleanWs()
+                // Correct git checkout syntax
+                checkout ([
+                    $class: 'GitSCM'
+                    branches: [[name: 'uat']]
+                    userRemoteConfigs: [[
+                        url: env.REPO_URL
+                    ]]
+                ])
             }
         }
         
