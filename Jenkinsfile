@@ -3,7 +3,7 @@ pipeline {
     
     environment {
         REPO_URL = 'https://github.com/sahil-dotcom/AWS-Wordpress-App---Enhanced-with-Cloudfront-WAF-Lambda-Edge-Datadog.git'
-        WORKING_DIR = 'terraform-aws-infra'
+        // WORKING_DIR = 'terraform-aws-infra'
     }
     
     stages {
@@ -23,7 +23,6 @@ pipeline {
         stage('Security Scans & Validation') {
             steps {
                 script {
-                    dir(env.WORKING_DIR) {
                         // Format check
                         echo 'Running terraform format check...'
                         def fmtOutput = sh script: 'terraform fmt -check -recursive', returnStatus: true
@@ -128,7 +127,7 @@ pipeline {
     post {
         always {
             echo 'Pipeline completed - cleaning up workspace'
-            // cleanWs()
+            cleanWs()
         }
         success {
             echo 'Pipeline succeeded! Infrastructure deployed successfully.'
