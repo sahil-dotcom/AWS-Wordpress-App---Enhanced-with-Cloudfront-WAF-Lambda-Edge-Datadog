@@ -1,8 +1,5 @@
 pipeline {
     agent any
-    options {
-        timestamps() // Add timestamps for better log traceability
-    }
 
     environment {
         REPO_URL = 'https://github.com/sahil-dotcom/AWS-Wordpress-App---Enhanced-with-Cloudfront-WAF-Lambda-Edge-Datadog.git'
@@ -43,17 +40,19 @@ pipeline {
 
         stage('Terraform Plan') {
             steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'tf-user',
-                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                ]]) {
-                    sh 'terraform init -input=false'
-                    sh 'terraform plan -out=tfplan'
-                    archiveArtifacts artifacts: 'tfplan'
-                    def planText = sh(script: 'terraform show -no-color tfplan', returnStdout: true)
-                    echo "Terraform Plan Output:\n${planText}"
+                script {
+                    withCredentials([[
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'tf-user',
+                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                    ]]) {
+                        sh 'terraform init -input=false'
+                        sh 'terraform plan -out=tfplan'
+                        archiveArtifacts artifacts: 'tfplan'
+                        def planText = sh(script: 'terraform show -no-color tfplan', returnStdout: true)
+                        echo "Terraform Plan Output:\n${planText}"
+                    }
                 }
             }
         }
@@ -65,8 +64,8 @@ pipeline {
                 }
 
                 sh '''
-                    git config user.name "Jenkins"
-                    git config user.email "jenkins@example.com"
+                    git config user.name "sahil-dotcom"
+                    git config user.email "rahatesahil47@gmail.com"
                     git fetch origin
                     git checkout main
                     git pull origin main
@@ -78,29 +77,47 @@ pipeline {
 
         stage('Terraform Apply') {
             steps {
-                lock(resource: 'terraform-apply-lock') {
-                    retry(2) {
-                        withCredentials([[
-                            $class: 'AmazonWebServicesCredentialsBinding',
-                            credentialsId: 'tf-user',
-                            accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                            secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                        ]]) {
-                            echo 'Applying Route53 DNS changes...'
-                            sh '''
-                                terraform apply -input=false \
-                                    -target=module.dns.aws_route53_zone.dev \
-                                    -auto-approve
-                            '''
-                            sleep 120
+                script {
+                    lock(resource: 'terraform-apply-lock') {
+                        retry(2) {
+                            withCredentials([aws(
+                                credentialsId: 'tf-user',
+                                accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                                secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                            )]) {
+                                // Apply DNS changes first with verification
+                                echo 'Applying Route53 DNS changes...'
+                                sh """
+                                    terraform apply -input=false \
+                                        -target=module.dns.aws_route53_zone.dev \
+                                        -auto-approve
+                                """
+                                
+                                // Verify DNS changes propagated
+                                timeout(time: 2, unit: 'MINUTES') {
+                                    waitUntil {
+                                        def ready = sh(
+                                            script: 'terraform state show module.dns.aws_route53_zone.dev | grep -q "name_servers"',
+                                            returnStatus: true
+                                        ) == 0
+                                        return ready
+                                    }
+                                }
 
-                            echo 'Applying full Terraform changes...'
-                            sh 'terraform apply -input=false tfplan'
+                                // Apply full configuration
+                                echo 'Applying full Terraform changes...'
+                                sh 'terraform apply -input=false tfplan'
 
-                            def outputs = sh(script: 'terraform output -json', returnStdout: true)
-                            echo "Terraform Outputs:\n${outputs}"
-                            writeFile file: 'terraform_outputs.json', text: outputs
-                            archiveArtifacts artifacts: 'terraform_outputs.json'
+                                // Capture and store outputs
+                                def outputs = sh(
+                                    script: 'terraform output -json',
+                                    returnStdout: true
+                                ).trim()
+                                
+                                echo "Terraform Outputs:\n${outputs}"
+                                writeJSON file: 'terraform_outputs.json', json: outputs
+                                archiveArtifacts artifacts: 'terraform_outputs.json'
+                            }
                         }
                     }
                 }
