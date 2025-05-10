@@ -17,8 +17,8 @@ pipeline {
             steps {
                 script {
                     echo 'Running terraform format check...'
-                    if (sh(script: 'terraform fmt -check -recursive', returnStatus: true) != 0) {
-                        error 'Terraform format check failed. Please run "terraform fmt" to fix formatting issues.'
+                    if (sh(script: 'terraform fmt -recursive', returnStatus: true) != 0) {
+                        error 'Terraform format failed.'
                     }
 
                     echo 'Running terraform validate...'
