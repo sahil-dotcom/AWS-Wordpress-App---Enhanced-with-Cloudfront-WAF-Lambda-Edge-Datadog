@@ -115,8 +115,9 @@ pipeline {
                     withCredentials([
                         gitUsernamePassword(
                             credentialsId: 'Github_token', 
-                            gitToolName: 'Default')
-                    ]) {
+                            usernameVariable: 'GIT_USER',
+                            passwordVariable: 'GIT_TOKEN'
+                        )]) {
                         sh '''
                             git config user.name "sahil-dotcom"
                             git config user.email "rahatesahil47@gmail.com"
@@ -125,7 +126,7 @@ pipeline {
                             git checkout main
                             git pull origin main
                             git merge --no-ff uat -m "Merge uat into main by Jenkins"
-                            git push origin main
+                            git -v push origin main
                         '''
                     }
                 }
