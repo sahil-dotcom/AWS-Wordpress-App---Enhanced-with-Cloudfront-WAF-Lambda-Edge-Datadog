@@ -20,29 +20,30 @@ pipeline {
                     withCredentials([
                         aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
                             credentialsId: 'tf-user', 
-                            secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                        )])
-                    echo 'Setting up Terraform backend...'
-                    dir ('backend') {
+                            secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
+                        echo 'Setting up Terraform backend...'
+                        dir ('backend') {
+                            try {
+                                sh '''
+                                terraform init -input=false
+                                terraform fmt
+                                terraform validate
+                                terraform apply -auto-approve
+                                '''
+                            } catch (Exception e) {
+                                error ("Failed to initalize backend: ${e.getMessage()}")
+                            }
+                        }
+                        echo 'Initalizing main Terraform configuration...'
                         try {
                             sh '''
                             terraform init -input=false
-                            terraform fmt
-                            terraform validate
-                            terraform apply -auto-approve
+                            terraform fmt -recursive
                             '''
                         } catch (Exception e) {
-                            error ("Failed to initalize backend: ${e.getMessage()}")
+                            error ("Failed to initalize main configuration: ${e.getMessage()}")
                         }
-                    }
-                    echo 'Initalizing main Terraform configuration...'
-                    try {
-                        sh '''
-                        terraform init -input=false
-                        terraform fmt -recursive
-                        '''
-                    } catch (Exception e) {
-                        error ("Failed to initalize main configuration: ${e.getMessage()}")
                     }
                 }
             }
@@ -77,11 +78,11 @@ pipeline {
         stage('Terraform Plan') {
             steps {
                 script {
-                        withCredentials([
-                            aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
-                            credentialsId: 'tf-user', 
-                            secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                            )])
+                    withCredentials([
+                        aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
+                        credentialsId: 'tf-user', 
+                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
                         echo 'Genrating tfplan...'
                         def planStatus = sh(
                             script:'terraform plan -detailed-exitcode -out=tfplan',
@@ -97,6 +98,7 @@ pipeline {
                         ).trim()
                         writeFile file: 'terraform_plan.txt', text: planText
                         archiveArtifacts artifacts: 'tfplan'
+                    }
                 }
             }
         }
@@ -113,57 +115,64 @@ pipeline {
                     withCredentials([
                         gitUsernamePassword(
                             credentialsId: 'Github_token', 
-                            gitToolName: 'Default'
-                            )])
-                    sh '''
-                        git config user.name "sahil-dotcom"
-                        git config user.email "rahatesahil47@gmail.com"
-                        git remote set-url origin https://${GIT_USER}:${GIT_TOKEN}@github.com/sahil-dotcom/AWS-Wordpress-App---Enhanced-with-Cloudfront-WAF-Lambda-Edge-Datadog.git
-                        git fetch origin
-                        git checkout main
-                        git pull origin main
-                        git merge --no-ff uat -m "Merge uat into main by Jenkins"
-                        git push origin main
-                    '''
+                            gitToolName: 'Default')
+                    ]) {
+                        sh '''
+                            git config user.name "sahil-dotcom"
+                            git config user.email "rahatesahil47@gmail.com"
+                            git remote set-url origin https://${GIT_USER}:${GIT_TOKEN}@github.com/sahil-dotcom/AWS-Wordpress-App---Enhanced-with-Cloudfront-WAF-Lambda-Edge-Datadog.git
+                            git fetch origin
+                            git checkout main
+                            git pull origin main
+                            git merge --no-ff uat -m "Merge uat into main by Jenkins"
+                            git push origin main
+                        '''
+                    }
+                }
             }
         }
-    }
-        
+
         stage('Terraform Apply') {
             steps {
                 script {
                     lock(resource: 'terraform-apply-lock') {
                         retry(2) {
-                            // Apply DNS changes first with verification
-                            echo 'Applying Route53 DNS changes...'
-                            sh '''
-                                terraform apply -input=false \
-                                    -target=module.dns.aws_route53_zone.dev \
-                                    -auto-approve
-                            '''
-                            def nameServers = sh(
-                                script: 'terraform state show module.dns.aws_route53_zone.dev',
-                                returnStdout: true
-                            ).trim()
-                            echo "Name servers to update: ${nameServers}"
+                            withCredentials([
+                                aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
+                                credentialsId: 'tf-user', 
+                                secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')
+                            ]) {
+                                // Apply DNS changes first with verification
+                                echo 'Applying Route53 DNS changes...'
+                                sh '''
+                                    terraform apply -input=false \
+                                        -target=module.dns.aws_route53_zone.dev \
+                                        -auto-approve
+                                '''
+                                def nameServers = sh(
+                                    script: 'terraform state show module.dns.aws_route53_zone.dev',
+                                    returnStdout: true
+                                ).trim()
+                                echo "Name servers to update: ${nameServers}"
 
-                            input message: "Please update your domain's name servers in Hostinger",
-                                ok: 'Continue'
+                                input message: "Please update your domain's name servers in Hostinger",
+                                    ok: 'Continue'
+                                    
+
+                                // Apply full configuration
+                                echo 'Applying full Terraform changes...'
+                                sh 'terraform apply -input=false tfplan'
+
+                                // Capture and store outputs
+                                def outputs = sh(
+                                    script: 'terraform output -json',
+                                    returnStdout: true
+                                ).trim()
                                 
-
-                            // Apply full configuration
-                            echo 'Applying full Terraform changes...'
-                            sh 'terraform apply -input=false tfplan'
-
-                            // Capture and store outputs
-                            def outputs = sh(
-                                script: 'terraform output -json',
-                                returnStdout: true
-                            ).trim()
-                            
-                            echo "Terraform Outputs:\n${outputs}"
-                            writeJSON file: 'terraform_outputs.json', json: outputs
-                            archiveArtifacts artifacts: 'terraform_outputs.json'
+                                echo "Terraform Outputs:\n${outputs}"
+                                writeJSON file: 'terraform_outputs.json', json: outputs
+                                archiveArtifacts artifacts: 'terraform_outputs.json'
+                            }
                         }
                     }
                 }
@@ -183,5 +192,4 @@ pipeline {
             echo 'Pipeline failed. Check the logs for details.'
         }
     }
-
 }
