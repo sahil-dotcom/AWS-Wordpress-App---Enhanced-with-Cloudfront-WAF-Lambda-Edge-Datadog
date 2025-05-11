@@ -133,10 +133,9 @@ pipeline {
                                 ).trim()
                                 echo "Name servers to update: ${nameServers}"
 
-                                input message (
-                                    message: "Please update your domain's name servers in Hostinger"
+                                input message: "Please update your domain's name servers in Hostinger",
                                     ok: 'Continue'
-                                    )
+                                    
 
                                 // Apply full configuration
                                 echo 'Applying full Terraform changes...'
