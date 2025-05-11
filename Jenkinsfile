@@ -3,24 +3,25 @@ pipeline {
 
     environment {
         REPO_URL = 'https://github.com/sahil-dotcom/AWS-Wordpress-App---Enhanced-with-Cloudfront-WAF-Lambda-Edge-Datadog.git'
-        
-        AWS_ACCESS_KEY_ID     = credentials('tf-user').AWS_ACCESS_KEY_ID.toString()
-        AWS_SECRET_ACCESS_KEY = credentials('tf-user').AWS_SECRET_ACCESS_KEY.toString()
-        GIT_USER              = credentials('Github_token').USR.toString()
-        GIT_TOKEN             = credentials('Github_token').PSW.toString()
     }
 
     stages {
         stage('Checkout Source Code') {
             steps {
                 cleanWs()
-                git branch: 'uat', url: "${env.REPO_URL}"
+                git branch: 'uat', 
+                url: "${env.REPO_URL}"
             }
         }
 
         stage('Backend configuration') {
             steps {
                 script {
+                    withCredentials([
+                        aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
+                            credentialsId: 'tf-user', 
+                            secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                        )])
                     echo 'Setting up Terraform backend...'
                     dir ('backend') {
                         try {
@@ -76,6 +77,11 @@ pipeline {
         stage('Terraform Plan') {
             steps {
                 script {
+                        withCredentials([
+                            aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
+                            credentialsId: 'tf-user', 
+                            secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                            )])
                         echo 'Genrating tfplan...'
                         def planStatus = sh(
                             script:'terraform plan -detailed-exitcode -out=tfplan',
@@ -97,21 +103,28 @@ pipeline {
 
         stage('Manual Approval') {
             steps {
-                timeout(time: 1, unit: 'HOURS') {
-                    input message: 'Review the Terraform plan above. Approve to proceed with apply?', 
-                    ok: 'Approve'
-                }
-
-                sh '''
-                    git config user.name "sahil-dotcom"
-                    git config user.email "rahatesahil47@gmail.com"
-                    git remote set-url origin https://${GIT_USER}:${GIT_TOKEN}@github.com/sahil-dotcom/AWS-Wordpress-App---Enhanced-with-Cloudfront-WAF-Lambda-Edge-Datadog.git
-                    git fetch origin
-                    git checkout main
-                    git pull origin main
-                    git merge --no-ff uat -m "Merge uat into main by Jenkins"
-                    git push origin main
-                '''
+                script {
+                    timeout(time: 1, unit: 'HOURS') {
+                       input {
+                            message 'Review the Terraform plan above. Approve to proceed with apply?'
+                            ok 'Approve'
+                        }
+                    }
+                    withCredentials([
+                        gitUsernamePassword(
+                            credentialsId: 'Github_token', 
+                            gitToolName: 'Default'
+                            )])
+                    sh '''
+                        git config user.name "sahil-dotcom"
+                        git config user.email "rahatesahil47@gmail.com"
+                        git remote set-url origin https://${GIT_USER}:${GIT_TOKEN}@github.com/sahil-dotcom/AWS-Wordpress-App---Enhanced-with-Cloudfront-WAF-Lambda-Edge-Datadog.git
+                        git fetch origin
+                        git checkout main
+                        git pull origin main
+                        git merge --no-ff uat -m "Merge uat into main by Jenkins"
+                        git push origin main
+                    '''
             }
         }
 
