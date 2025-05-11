@@ -4,10 +4,10 @@ pipeline {
     environment {
         REPO_URL = 'https://github.com/sahil-dotcom/AWS-Wordpress-App---Enhanced-with-Cloudfront-WAF-Lambda-Edge-Datadog.git'
         
-        AWS_ACCESS_KEY_ID     = credentials('tf-user').AWS_ACCESS_KEY_ID
-        AWS_SECRET_ACCESS_KEY = credentials('tf-user').AWS_SECRET_ACCESS_KEY
-        GIT_USER              = credentials('Github_token').USR
-        GIT_TOKEN             = credentials('Github_token').PSW
+        AWS_ACCESS_KEY_ID     = credentials('tf-user').AWS_ACCESS_KEY_ID.toString()
+        AWS_SECRET_ACCESS_KEY = credentials('tf-user').AWS_SECRET_ACCESS_KEY.toString()
+        GIT_USER              = credentials('Github_token').USR.toString()
+        GIT_TOKEN             = credentials('Github_token').PSW.toString()
     }
 
     stages {
@@ -18,7 +18,7 @@ pipeline {
             }
         }
 
-        stage('Backend configuration')
+        stage('Backend configuration') {
             steps {
                 script {
                     echo 'Setting up Terraform backend...'
@@ -120,41 +120,42 @@ pipeline {
                 script {
                     lock(resource: 'terraform-apply-lock') {
                         retry(2) {
-                                // Apply DNS changes first with verification
-                                echo 'Applying Route53 DNS changes...'
-                                sh '''
-                                    terraform apply -input=false \
-                                        -target=module.dns.aws_route53_zone.dev \
-                                        -auto-approve
-                                '''
-                                def nameServers = sh(
-                                    script: 'terraform state show module.dns.aws_route53_zone.dev',
-                                    returnStdout: true
-                                ).trim()
-                                echo "Name servers to update: ${nameServers}"
+                            // Apply DNS changes first with verification
+                            echo 'Applying Route53 DNS changes...'
+                            sh '''
+                                terraform apply -input=false \
+                                    -target=module.dns.aws_route53_zone.dev \
+                                    -auto-approve
+                            '''
+                            def nameServers = sh(
+                                script: 'terraform state show module.dns.aws_route53_zone.dev',
+                                returnStdout: true
+                            ).trim()
+                            echo "Name servers to update: ${nameServers}"
 
-                                input message: "Please update your domain's name servers in Hostinger",
-                                    ok: 'Continue'
-                                    
-
-                                // Apply full configuration
-                                echo 'Applying full Terraform changes...'
-                                sh 'terraform apply -input=false tfplan'
-
-                                // Capture and store outputs
-                                def outputs = sh(
-                                    script: 'terraform output -json',
-                                    returnStdout: true
-                                ).trim()
+                            input message: "Please update your domain's name servers in Hostinger",
+                                ok: 'Continue'
                                 
-                                echo "Terraform Outputs:\n${outputs}"
-                                writeJSON file: 'terraform_outputs.json', json: outputs
-                                archiveArtifacts artifacts: 'terraform_outputs.json'
-                            }
+
+                            // Apply full configuration
+                            echo 'Applying full Terraform changes...'
+                            sh 'terraform apply -input=false tfplan'
+
+                            // Capture and store outputs
+                            def outputs = sh(
+                                script: 'terraform output -json',
+                                returnStdout: true
+                            ).trim()
+                            
+                            echo "Terraform Outputs:\n${outputs}"
+                            writeJSON file: 'terraform_outputs.json', json: outputs
+                            archiveArtifacts artifacts: 'terraform_outputs.json'
                         }
                     }
                 }
             }
+        }
+    }
 
     post {
         always {
