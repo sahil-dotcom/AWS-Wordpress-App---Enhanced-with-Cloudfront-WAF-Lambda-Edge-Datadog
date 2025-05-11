@@ -132,7 +132,7 @@ pipeline {
             steps {
                 script {
                     lock(resource: 'terraform-apply-lock') {
-                        retry(2) {
+                            {
                             withCredentials([
                                 aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
                                 credentialsId: 'tf-user', 
