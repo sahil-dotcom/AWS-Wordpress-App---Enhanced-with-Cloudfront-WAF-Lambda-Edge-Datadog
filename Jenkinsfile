@@ -183,7 +183,7 @@ pipeline {
     post {
         always {
             echo 'Pipeline completed - cleaning up workspace'
-            cleanWs()
+            // cleanWs()
         }
         success {
             echo 'Pipeline succeeded! Infrastructure deployed successfully.'
