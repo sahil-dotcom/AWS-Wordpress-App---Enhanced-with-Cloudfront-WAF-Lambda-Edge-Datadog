@@ -126,7 +126,7 @@ pipeline {
                             git checkout main
                             git pull origin main
                             git merge --no-ff uat -m "Merge uat into main by Jenkins"
-                            git -v push origin main
+                            git push -v origin main
                         '''
                     }
                 }
