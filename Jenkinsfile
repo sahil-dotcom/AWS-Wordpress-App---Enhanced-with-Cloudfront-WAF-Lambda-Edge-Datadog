@@ -116,7 +116,7 @@ pipeline {
                     sh '''
                         git config user.name "sahil-dotcom"
                         git config user.email "rahatesahil47@gmail.com"
-                        git remote set-url origin https://${GIT_USER}:${GIT_TOKEN}@github.com/sahil-dotcom/AWS-Wordpress-App---Enhanced-with-Cloudfront-WAF-Lambda-Edge-Datadog.git
+                        git remote set-url origin git@github.com:sahil-dotcom/AWS-Wordpress-App---Enhanced-with-Cloudfront-WAF-Lambda-Edge-Datadog.git
                         git fetch origin
                         git checkout main
                         git pull origin main
