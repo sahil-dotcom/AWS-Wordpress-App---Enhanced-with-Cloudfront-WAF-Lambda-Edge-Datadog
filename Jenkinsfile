@@ -107,10 +107,10 @@ pipeline {
             steps {
                 script {
                     timeout(time: 1, unit: 'HOURS') {
-                       input {
-                            message 'Review the Terraform plan above. Approve to proceed with apply?'
-                            ok 'Approve'
-                        }
+                       input (
+                            message: 'Review the Terraform plan above. Approve to proceed with apply?',
+                            ok: 'Approve'                       
+                        )   
                     }
                     withCredentials([
                         gitUsernamePassword(
@@ -155,9 +155,10 @@ pipeline {
                                 ).trim()
                                 echo "Name servers to update: ${nameServers}"
 
-                                input message: "Please update your domain's name servers in Hostinger",
+                                input (
+                                    message: "Please update your domain's name servers in Hostinger",
                                     ok: 'Continue'
-                                    
+                                )            
 
                                 // Apply full configuration
                                 echo 'Applying full Terraform changes...'
