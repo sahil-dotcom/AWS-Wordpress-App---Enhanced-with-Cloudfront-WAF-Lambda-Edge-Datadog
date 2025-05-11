@@ -127,7 +127,8 @@ pipeline {
                     '''
             }
         }
-
+    }
+        
         stage('Terraform Apply') {
             steps {
                 script {
@@ -182,4 +183,5 @@ pipeline {
             echo 'Pipeline failed. Check the logs for details.'
         }
     }
+
 }
