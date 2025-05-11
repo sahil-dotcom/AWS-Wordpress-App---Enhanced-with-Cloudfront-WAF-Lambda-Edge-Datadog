@@ -71,9 +71,9 @@ data "aws_iam_policy_document" "rds_and_secret_manager" {
   }
 
   statement {
-    actions = ["rds:DescribeDBInstances"]
+    actions   = ["rds:DescribeDBInstances"]
     resources = ["*"]
-    effect = "Allow"
+    effect    = "Allow"
   }
 
   statement {
