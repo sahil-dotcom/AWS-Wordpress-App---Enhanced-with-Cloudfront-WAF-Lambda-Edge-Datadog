@@ -31,7 +31,7 @@ resource "aws_lb_target_group" "main" {
     enabled             = true
     path                = "/health.php"
     port                = "traffic-port"
-    protocol            = "HTTPS"
+    protocol            = "HTTP"
     healthy_threshold   = 5
     unhealthy_threshold = 5
     timeout             = 5
